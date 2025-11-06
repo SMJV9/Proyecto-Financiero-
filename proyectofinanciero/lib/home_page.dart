@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'transactions_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -12,14 +13,6 @@ class HomePage extends StatelessWidget {
       parameters: {'description': 'Usuario abrió HomePage'},
     );
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Inicio de mi App')),
-      body: const Center(
-        child: Text(
-          'Firebase conectado correctamente',
-          style: TextStyle(fontSize: 18),
-        ),
-      ),
-    );
+    return const TransactionsPage();
   }
 }
