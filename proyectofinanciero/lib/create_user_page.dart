@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'home_page.dart';
+import 'main_navigation.dart';
 
 class CreateUserPage extends StatefulWidget {
   const CreateUserPage({super.key});
@@ -13,6 +13,7 @@ class CreateUserPage extends StatefulWidget {
 
 class _CreateUserPageState extends State<CreateUserPage> {
   final _formKey = GlobalKey<FormState>();
+  final _nombreController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
@@ -23,6 +24,7 @@ class _CreateUserPageState extends State<CreateUserPage> {
 
   @override
   void dispose() {
+    _nombreController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmController.dispose();
@@ -42,6 +44,24 @@ class _CreateUserPageState extends State<CreateUserPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
               children: [
+                TextFormField(
+                  controller: _nombreController,
+                  decoration: InputDecoration(
+                    labelText: 'Nombre',
+                    prefixIcon: const Icon(Icons.person),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  keyboardType: TextInputType.name,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Este campo es obligatorio';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
                 TextFormField(
                   controller: _emailController,
                   decoration: InputDecoration(
@@ -160,14 +180,25 @@ class _CreateUserPageState extends State<CreateUserPage> {
         password: _passwordController.text,
       );
 
+      // Actualiza el displayName del usuario con el nombre ingresado
+      try {
+        await FirebaseAuth.instance.currentUser?.updateDisplayName(
+          _nombreController.text.trim(),
+        );
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('No se pudo actualizar displayName: $e');
+        }
+      }
+
       // Guarda un perfil básico del usuario en Firestore (sin contraseña)
       try {
         final uid = FirebaseAuth.instance.currentUser?.uid;
         if (uid != null) {
           await FirebaseFirestore.instance.collection('usuarios').doc(uid).set({
             'correo_usua': _emailController.text.trim(),
-            // Campo opcional: completa desde otro formulario si quieres capturar nombre
-            'nombre_usua': null,
+            'nombre_usua': _nombreController.text.trim(),
+            'rol': 'usuario',
             'createdAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
         }
@@ -179,7 +210,7 @@ class _CreateUserPageState extends State<CreateUserPage> {
       }
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const HomePage()),
+        MaterialPageRoute(builder: (_) => const MainNavigation()),
         (_) => false,
       );
     } on FirebaseAuthException catch (e) {
