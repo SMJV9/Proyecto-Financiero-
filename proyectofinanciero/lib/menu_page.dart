@@ -25,98 +25,98 @@ class _MenuPageState extends State<MenuPage> {
         children: [
           const SizedBox(height: 18),
           // Header
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              children: [
-                InkWell(
-                  borderRadius: BorderRadius.circular(23),
-                  onTap: () async {
-                    final changed = await Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const ProfileEditPage(),
-                      ),
-                    );
-                    if (changed == true && mounted) setState(() {});
-                  },
-                  child: Container(
-                    width: 46,
-                    height: 46,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF00B2E7), Color(0xFFE064F7)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.06),
-                          blurRadius: 6,
-                        ),
-                      ],
-                    ),
-                    child: const Center(
-                      child: CircleAvatar(
-                        backgroundColor: Colors.white,
-                        radius: 18,
-                        child: Icon(Icons.person, color: Color(0xFF00B2E7)),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Menú',
-                      style: TextStyle(fontSize: 12, color: Colors.black54),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      user?.displayName ?? user?.email ?? 'Usuario',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                const Spacer(),
-                InkWell(
-                  borderRadius: BorderRadius.circular(10),
-                  onTap: () async {
-                    final changed = await Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const ProfileEditPage(),
-                      ),
-                    );
-                    if (changed == true && mounted) setState(() {});
-                  },
-                  child: Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(10),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
-                          blurRadius: 6,
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.settings,
-                      size: 18,
-                      color: Colors.black54,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          // Padding(
+          //   padding: const EdgeInsets.symmetric(horizontal: 20),
+          //   child: Row(
+          //     children: [
+          //       InkWell(
+          //         borderRadius: BorderRadius.circular(23),
+          //         onTap: () async {
+          //           final changed = await Navigator.of(context).push(
+          //             MaterialPageRoute(
+          //               builder: (_) => const ProfileEditPage(),
+          //             ),
+          //           );
+          //           if (changed == true && mounted) setState(() {});
+          //         },
+          //         child: Container(
+          //           width: 46,
+          //           height: 46,
+          //           decoration: BoxDecoration(
+          //             shape: BoxShape.circle,
+          //             gradient: const LinearGradient(
+          //               colors: [Color(0xFF00B2E7), Color(0xFFE064F7)],
+          //               begin: Alignment.topLeft,
+          //               end: Alignment.bottomRight,
+          //             ),
+          //             boxShadow: [
+          //               BoxShadow(
+          //                 color: Colors.black.withOpacity(0.06),
+          //                 blurRadius: 6,
+          //               ),
+          //             ],
+          //           ),
+          //           child: const Center(
+          //             child: CircleAvatar(
+          //               backgroundColor: Colors.white,
+          //               radius: 18,
+          //               child: Icon(Icons.person, color: Color(0xFF00B2E7)),
+          //             ),
+          //           ),
+          //         ),
+          //       ),
+          //       const SizedBox(width: 12),
+          //       Column(
+          //         crossAxisAlignment: CrossAxisAlignment.start,
+          //         children: [
+          //           const Text(
+          //             'Menú',
+          //             style: TextStyle(fontSize: 12, color: Colors.black54),
+          //           ),
+          //           const SizedBox(height: 2),
+          //           Text(
+          //             user?.displayName ?? user?.email ?? 'Usuario',
+          //             style: const TextStyle(
+          //               fontSize: 16,
+          //               fontWeight: FontWeight.bold,
+          //             ),
+          //           ),
+          //         ],
+          //       ),
+          //       const Spacer(),
+          //       InkWell(
+          //         borderRadius: BorderRadius.circular(10),
+          //         onTap: () async {
+          //           final changed = await Navigator.of(context).push(
+          //             MaterialPageRoute(
+          //               builder: (_) => const ProfileEditPage(),
+          //             ),
+          //           );
+          //           if (changed == true && mounted) setState(() {});
+          //         },
+          //         child: Container(
+          //           width: 36,
+          //           height: 36,
+          //           decoration: BoxDecoration(
+          //             color: Colors.white,
+          //             borderRadius: BorderRadius.circular(10),
+          //             boxShadow: [
+          //               BoxShadow(
+          //                 color: Colors.black.withOpacity(0.04),
+          //                 blurRadius: 6,
+          //               ),
+          //             ],
+          //           ),
+          //           child: const Icon(
+          //             Icons.settings,
+          //             size: 18,
+          //             color: Colors.black54,
+          //           ),
+          //         ),
+          //       ),
+          //     ],
+          //   ),
+          // ),
 
           const SizedBox(height: 32),
 

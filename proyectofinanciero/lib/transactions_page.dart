@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:proyectofinanciero/blocs/transactions/transactions_bloc.dart';
 
 class TransactionsPage extends StatefulWidget {
   const TransactionsPage({super.key});
@@ -12,6 +14,16 @@ class TransactionsPage extends StatefulWidget {
 
 class _TransactionsPageState extends State<TransactionsPage> {
   String _filterType = 'all'; // all | income | expense
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Cargar transacciones cuando se inicialice la página
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      context.read<TransactionsBloc>().add(LoadTransactions(uid));
+    }
+  }
 
   IconData _iconForCategory(String category) {
     final c = category.toLowerCase();
@@ -92,7 +104,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Welcome!',
+                      '¡Bienvenido(a)!',
                       style: TextStyle(fontSize: 12, color: Colors.black54),
                     ),
                     const SizedBox(height: 2),
@@ -191,120 +203,54 @@ class _TransactionsPageState extends State<TransactionsPage> {
       );
     }
 
-    if (_filterType == 'income') {
-      final q = FirebaseFirestore.instance
-          .collection('ingresos')
-          .where('id_usuario', isEqualTo: uid)
-          .orderBy('fecha', descending: true);
-      return StreamBuilder<QuerySnapshot>(
-        stream: q.snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            if (kDebugMode) {
-              debugPrint('Firestore ingresos error: ${snapshot.error}');
-            }
-            return _errorListPlaceholder();
-          }
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          final docs = snapshot.data?.docs ?? [];
-          if (docs.isEmpty) {
-            return const Center(child: Text('No hay ingresos aún'));
-          }
-          return _buildListFromDocs(
-            docs.map((d) => _TxnItem('ingresos', d)).toList(),
-            uid,
-          );
-        },
-      );
-    }
-
-    if (_filterType == 'expense') {
-      final q = FirebaseFirestore.instance
-          .collection('gastos')
-          .where('id_usuario', isEqualTo: uid)
-          .orderBy('fecha', descending: true);
-      return StreamBuilder<QuerySnapshot>(
-        stream: q.snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            if (kDebugMode) {
-              debugPrint('Firestore gastos error: ${snapshot.error}');
-            }
-            return _errorListPlaceholder();
-          }
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          final docs = snapshot.data?.docs ?? [];
-          if (docs.isEmpty) {
-            return const Center(child: Text('No hay egresos aún'));
-          }
-          return _buildListFromDocs(
-            docs.map((d) => _TxnItem('gastos', d)).toList(),
-            uid,
-          );
-        },
-      );
-    }
-
-    // all: combinar ingresos + gastos y ordenar en cliente
-    final incomeQ = FirebaseFirestore.instance
-        .collection('ingresos')
-        .where('id_usuario', isEqualTo: uid)
-        .snapshots();
-    return StreamBuilder<QuerySnapshot>(
-      stream: incomeQ,
-      builder: (context, incomeSnap) {
-        if (incomeSnap.hasError) return _errorListPlaceholder();
-        if (incomeSnap.connectionState == ConnectionState.waiting) {
+    return BlocBuilder<TransactionsBloc, TransactionsState>(
+      builder: (context, state) {
+        if (state is TransactionsLoading) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final expenseQ = FirebaseFirestore.instance
-            .collection('gastos')
-            .where('id_usuario', isEqualTo: uid)
-            .snapshots();
-        return StreamBuilder<QuerySnapshot>(
-          stream: expenseQ,
-          builder: (context, expenseSnap) {
-            if (expenseSnap.hasError) return _errorListPlaceholder();
-            if (expenseSnap.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
+        if (state is TransactionsError) {
+          return Center(child: Text('Error: ${state.message}'));
+        }
+
+        if (state is TransactionsLoaded) {
+          List<_TxnItem> items = [];
+
+          if (_filterType == 'income') {
+            items = state.ingresos
+                .map((data) => _TxnItem('ingresos', null, data: data))
+                .toList();
+            if (items.isEmpty) {
+              return const Center(child: Text('No hay ingresos aún'));
             }
-
-            final items = <_TxnItem>[];
+          } else if (_filterType == 'expense') {
+            items = state.gastos
+                .map((data) => _TxnItem('gastos', null, data: data))
+                .toList();
+            if (items.isEmpty) {
+              return const Center(child: Text('No hay gastos aún'));
+            }
+          } else {
+            // 'all' - mostrar ambos
             items.addAll(
-              (incomeSnap.data?.docs ?? []).map((d) => _TxnItem('ingresos', d)),
+              state.ingresos
+                  .map((data) => _TxnItem('ingresos', null, data: data))
+                  .toList(),
             );
             items.addAll(
-              (expenseSnap.data?.docs ?? []).map((d) => _TxnItem('gastos', d)),
+              state.gastos
+                  .map((data) => _TxnItem('gastos', null, data: data))
+                  .toList(),
             );
-
-            // ordenar por createdAt desc en cliente
-            items.sort((a, b) {
-              final da =
-                  ((a.doc.data() as Map<String, dynamic>)['fecha']
-                          as Timestamp?)
-                      ?.toDate();
-              final db =
-                  ((b.doc.data() as Map<String, dynamic>)['fecha']
-                          as Timestamp?)
-                      ?.toDate();
-              final ad = da ?? DateTime.fromMillisecondsSinceEpoch(0);
-              final bd = db ?? DateTime.fromMillisecondsSinceEpoch(0);
-              return bd.compareTo(ad);
-            });
-
             if (items.isEmpty) {
               return const Center(child: Text('No hay transacciones aún'));
             }
-            return _buildListFromDocs(items, uid);
-          },
-        );
+          }
+
+          return _buildListFromDocs(items, uid);
+        }
+
+        return const Center(child: Text('Cargando transacciones...'));
       },
     );
   }
@@ -332,7 +278,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         final item = items[index];
-        final data = item.doc.data() as Map<String, dynamic>;
+        final data = item.documentData;
 
         // Map fields based on collection type
         final double amount;
@@ -420,7 +366,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
               context,
               uid,
               item.collection,
-              item.doc.id,
+              item.id,
               type,
               amount,
               category,
@@ -489,8 +435,14 @@ class _TransactionsPageState extends State<TransactionsPage> {
 
 class _TxnItem {
   final String collection; // 'ingresos' | 'gastos'
-  final QueryDocumentSnapshot doc;
-  _TxnItem(this.collection, this.doc);
+  final QueryDocumentSnapshot? doc;
+  final Map<String, dynamic>? data;
+
+  _TxnItem(this.collection, this.doc, {this.data});
+
+  String get id => doc?.id ?? data?['id'] ?? '';
+  Map<String, dynamic> get documentData =>
+      doc?.data() as Map<String, dynamic>? ?? data ?? {};
 }
 
 class _BalanceCard extends StatelessWidget {
@@ -521,156 +473,121 @@ class _BalanceCard extends StatelessWidget {
       );
     }
 
-    final incomesStream = FirebaseFirestore.instance
-        .collection('ingresos')
-        .where('id_usuario', isEqualTo: uid)
-        .snapshots();
-    return StreamBuilder<QuerySnapshot>(
-      stream: incomesStream,
-      builder: (context, incomesSnap) {
+    return BlocBuilder<TransactionsBloc, TransactionsState>(
+      builder: (context, state) {
         double incomeSum = 0;
-        if (incomesSnap.hasData) {
-          for (final d in incomesSnap.data!.docs) {
-            final Map<String, dynamic> data = d.data() as Map<String, dynamic>;
-            final raw = data['monto_ingr'];
-            final amt = raw is num
-                ? raw.toDouble()
-                : double.tryParse('$raw') ?? 0.0;
-            incomeSum += amt;
-          }
+        double expenseSum = 0;
+
+        if (state is TransactionsLoaded) {
+          incomeSum = state.totalIngresos;
+          expenseSum = state.totalGastos;
         }
 
-        final expensesStream = FirebaseFirestore.instance
-            .collection('gastos')
-            .where('id_usuario', isEqualTo: uid)
-            .snapshots();
+        final balanceDisplay = (incomeSum - expenseSum).toStringAsFixed(2);
 
-        return StreamBuilder<QuerySnapshot>(
-          stream: expensesStream,
-          builder: (context, expensesSnap) {
-            double expenseSum = 0;
-            if (expensesSnap.hasData) {
-              for (final d in expensesSnap.data!.docs) {
-                final Map<String, dynamic> data =
-                    d.data() as Map<String, dynamic>;
-                final raw = data['monto_gasto'];
-                final amt = raw is num
-                    ? raw.toDouble()
-                    : double.tryParse('$raw') ?? 0.0;
-                expenseSum += amt;
-              }
-            }
-
-            final balanceDisplay = (incomeSum - expenseSum).toStringAsFixed(2);
-
-            return Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF00B2E7), Color(0xFFE064F7)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
-                    blurRadius: 12,
-                    offset: const Offset(0, 6),
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            gradient: const LinearGradient(
+              colors: [Color(0xFF00B2E7), Color(0xFFE064F7)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 12,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Total Balance',
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                  IconButton(
+                    onPressed: () {},
+                    icon: const Icon(Icons.more_vert, color: Colors.white70),
                   ),
                 ],
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              const SizedBox(height: 8),
+              Text(
+                '\$ $balanceDisplay',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Total Balance',
-                        style: TextStyle(color: Colors.white70),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      IconButton(
-                        onPressed: () {},
-                        icon: const Icon(
-                          Icons.more_vert,
-                          color: Colors.white70,
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Ingresos',
+                            style: TextStyle(color: Colors.white70),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            '+\$${incomeSum.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '\$ $balanceDisplay',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.12),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Ingresos',
-                                style: TextStyle(color: Colors.white70),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                '+\$${incomeSum.toStringAsFixed(2)}',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.12),
-                            borderRadius: BorderRadius.circular(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Egresos',
+                            style: TextStyle(color: Colors.white70),
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Egresos',
-                                style: TextStyle(color: Colors.white70),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                '-\$${expenseSum.toStringAsFixed(2)}',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
+                          const SizedBox(height: 6),
+                          Text(
+                            '-\$${expenseSum.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ],
               ),
-            );
-          },
+            ],
+          ),
         );
       },
     );
@@ -692,21 +609,21 @@ class _AddTransactionFormState extends State<AddTransactionForm> {
   final _noteCtrl = TextEditingController();
   final _frecuenciaCtrl = TextEditingController();
   bool _loading = false;
-  String _selectedCategory = 'Other';
+  String _selectedCategory = 'Otro';
   final _customCategoryCtrl = TextEditingController();
   String _selectedFrecuencia = 'única';
 
   List<String> get _expenseCategories => const [
-    'Food',
-    'Shopping',
-    'Entertainment',
-    'Travel',
-    'Transport',
-    'Bills',
-    'Health',
-    'Education',
-    'Gifts',
-    'Other',
+    'Comida',
+    'Compras',
+    'Entretenimiento',
+    'Viajes',
+    'Transporte',
+    'Facturas',
+    'Salud',
+    'Educación',
+    'Regalos',
+    'Otro',
   ];
 
   List<String> get _incomeCategories => const [
@@ -715,7 +632,7 @@ class _AddTransactionFormState extends State<AddTransactionForm> {
     'Freelance',
     'Investment',
     'Refund',
-    'Other',
+    'Otro',
   ];
 
   List<String> get _frecuencias => const [
@@ -741,172 +658,188 @@ class _AddTransactionFormState extends State<AddTransactionForm> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              ChoiceChip(
-                label: const Text('Ingreso'),
-                selected: _type == 'income',
-                onSelected: (_) => setState(() {
-                  _type = 'income';
-                  // Reiniciar selección cuando cambia el tipo
-                  _selectedCategory = 'Other';
-                  _customCategoryCtrl.clear();
-                }),
-              ),
-              const SizedBox(width: 8),
-              ChoiceChip(
-                label: const Text('Egreso'),
-                selected: _type == 'expense',
-                onSelected: (_) => setState(() {
-                  _type = 'expense';
-                  _selectedCategory = 'Other';
-                  _customCategoryCtrl.clear();
-                }),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Form(
-            key: _formKey,
-            child: Column(
+    return BlocListener<TransactionsBloc, TransactionsState>(
+      listener: (context, state) {
+        if (state is TransactionOperationSuccess) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(state.message)));
+          if (mounted) Navigator.of(context).maybePop();
+        } else if (state is TransactionOperationError) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(state.message)));
+        }
+        if (mounted) setState(() => _loading = false);
+      },
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                TextFormField(
-                  controller: _amountCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  decoration: const InputDecoration(
-                    labelText: 'Monto',
-                    prefixIcon: Icon(Icons.attach_money),
-                  ),
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty)
-                      return 'Ingresa un monto';
-                    final n = double.tryParse(v.replaceAll(',', '.'));
-                    if (n == null || n <= 0) return 'Monto inválido';
-                    return null;
-                  },
+                ChoiceChip(
+                  label: const Text('Ingreso'),
+                  selected: _type == 'income',
+                  onSelected: (_) => setState(() {
+                    _type = 'income';
+                    // Reiniciar selección cuando cambia el tipo
+                    _selectedCategory = 'Otro';
+                    _customCategoryCtrl.clear();
+                  }),
                 ),
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Categorías',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.black54,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _categories.map((c) {
-                    final selected = _selectedCategory == c;
-                    return ChoiceChip(
-                      label: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            _chipIconForCategory(c),
-                            size: 16,
-                            color: selected
-                                ? Colors.white
-                                : _chipColorForCategory(c),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(c),
-                        ],
-                      ),
-                      selected: selected,
-                      selectedColor: _chipColorForCategory(c),
-                      backgroundColor: _chipColorForCategory(
-                        c,
-                      ).withOpacity(0.15),
-                      labelStyle: TextStyle(
-                        color: selected ? Colors.white : Colors.black87,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      onSelected: (_) => setState(() => _selectedCategory = c),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 8),
-                if (_selectedCategory == 'Other')
-                  TextFormField(
-                    controller: _customCategoryCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Otra categoría',
-                      prefixIcon: Icon(Icons.label_outline),
-                    ),
-                    validator: (v) {
-                      if (_selectedCategory == 'Other') {
-                        if (v == null || v.trim().isEmpty) {
-                          return 'Escribe la categoría';
-                        }
-                      }
-                      return null;
-                    },
-                  ),
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Frecuencia',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.black54,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  value: _selectedFrecuencia,
-                  decoration: const InputDecoration(
-                    labelText: 'Frecuencia',
-                    prefixIcon: Icon(Icons.repeat),
-                  ),
-                  items: _frecuencias.map((freq) {
-                    return DropdownMenuItem(
-                      value: freq,
-                      child: Text(freq.toUpperCase()),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() => _selectedFrecuencia = value);
-                    }
-                  },
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _noteCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Descripción',
-                    prefixIcon: Icon(Icons.note),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _loading ? null : _onSubmit,
-                    child: _loading
-                        ? const CircularProgressIndicator()
-                        : const Text('Guardar'),
-                  ),
+                const SizedBox(width: 8),
+                ChoiceChip(
+                  label: const Text('Egreso'),
+                  selected: _type == 'expense',
+                  onSelected: (_) => setState(() {
+                    _type = 'expense';
+                    _selectedCategory = 'Otro';
+                    _customCategoryCtrl.clear();
+                  }),
                 ),
               ],
             ),
-          ),
-        ],
+            const SizedBox(height: 12),
+            Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  TextFormField(
+                    controller: _amountCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Monto',
+                      prefixIcon: Icon(Icons.attach_money),
+                    ),
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty)
+                        return 'Ingresa un monto';
+                      final n = double.tryParse(v.replaceAll(',', '.'));
+                      if (n == null || n <= 0) return 'Monto inválido';
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Categorías',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.black54,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _categories.map((c) {
+                      final selected = _selectedCategory == c;
+                      return ChoiceChip(
+                        label: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              _chipIconForCategory(c),
+                              size: 16,
+                              color: selected
+                                  ? Colors.white
+                                  : _chipColorForCategory(c),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(c),
+                          ],
+                        ),
+                        selected: selected,
+                        selectedColor: _chipColorForCategory(c),
+                        backgroundColor: _chipColorForCategory(
+                          c,
+                        ).withOpacity(0.15),
+                        labelStyle: TextStyle(
+                          color: selected ? Colors.white : Colors.black87,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        onSelected: (_) =>
+                            setState(() => _selectedCategory = c),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 8),
+                  if (_selectedCategory == 'Otro')
+                    TextFormField(
+                      controller: _customCategoryCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Otra categoría',
+                        prefixIcon: Icon(Icons.label_outline),
+                      ),
+                      validator: (v) {
+                        if (_selectedCategory == 'Otro') {
+                          if (v == null || v.trim().isEmpty) {
+                            return 'Escribe la categoría';
+                          }
+                        }
+                        return null;
+                      },
+                    ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Frecuencia',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.black54,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    value: _selectedFrecuencia,
+                    decoration: const InputDecoration(
+                      labelText: 'Frecuencia',
+                      prefixIcon: Icon(Icons.repeat),
+                    ),
+                    items: _frecuencias.map((freq) {
+                      return DropdownMenuItem(
+                        value: freq,
+                        child: Text(freq.toUpperCase()),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() => _selectedFrecuencia = value);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _noteCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Descripción',
+                      prefixIcon: Icon(Icons.note),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _loading ? null : _onSubmit,
+                      child: _loading
+                          ? const CircularProgressIndicator()
+                          : const Text('Guardar'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -916,7 +849,7 @@ class _AddTransactionFormState extends State<AddTransactionForm> {
     setState(() => _loading = true);
     try {
       final amount = double.parse(_amountCtrl.text.replaceAll(',', '.'));
-      final category = _selectedCategory == 'Other'
+      final category = _selectedCategory == 'Otro'
           ? _customCategoryCtrl.text.trim()
           : _selectedCategory;
       final collection = _type == 'income' ? 'ingresos' : 'gastos';
@@ -944,14 +877,15 @@ class _AddTransactionFormState extends State<AddTransactionForm> {
         });
       }
 
-      await FirebaseFirestore.instance.collection(collection).add(data);
-      if (mounted) Navigator.of(context).maybePop();
+      // Usar BLoC para agregar la transacción
+      context.read<TransactionsBloc>().add(
+        AddTransaction(transactionData: data, type: collection),
+      );
     } catch (e) {
       if (kDebugMode) debugPrint('Error al guardar transacción: $e');
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error: $e')));
-    } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
@@ -1042,19 +976,19 @@ class _EditTransactionFormState extends State<EditTransactionForm> {
     'Travel',
     'Transport',
     'Bills',
-    'Health',
-    'Education',
-    'Gifts',
-    'Other',
+    'Salud',
+    'Educación',
+    'Regalos',
+    'Otro',
   ];
 
   List<String> get _incomeCategories => const [
-    'Salary',
-    'Bonus',
+    'Salario',
+    'Bono',
     'Freelance',
-    'Investment',
-    'Refund',
-    'Other',
+    'Inversión',
+    'Reembolso',
+    'Otro',
   ];
 
   List<String> get _frecuencias => const [
@@ -1234,7 +1168,7 @@ class _EditTransactionFormState extends State<EditTransactionForm> {
                   }).toList(),
                 ),
                 const SizedBox(height: 8),
-                if (_selectedCategory.toLowerCase() == 'other')
+                if (_selectedCategory.toLowerCase() == 'otro')
                   TextFormField(
                     controller: _customCategoryCtrl,
                     decoration: const InputDecoration(
@@ -1242,7 +1176,7 @@ class _EditTransactionFormState extends State<EditTransactionForm> {
                       prefixIcon: Icon(Icons.label_outline),
                     ),
                     validator: (v) {
-                      if (_selectedCategory.toLowerCase() == 'other') {
+                      if (_selectedCategory.toLowerCase() == 'otro') {
                         if (v == null || v.trim().isEmpty) {
                           return 'Escribe la categoría';
                         }
@@ -1309,7 +1243,7 @@ class _EditTransactionFormState extends State<EditTransactionForm> {
     setState(() => _loading = true);
     try {
       final amount = double.parse(_amountCtrl.text.replaceAll(',', '.'));
-      final category = _selectedCategory.toLowerCase() == 'other'
+      final category = _selectedCategory.toLowerCase() == 'otro'
           ? _customCategoryCtrl.text.trim()
           : _selectedCategory;
       final targetCollection = _type == 'income' ? 'ingresos' : 'gastos';
