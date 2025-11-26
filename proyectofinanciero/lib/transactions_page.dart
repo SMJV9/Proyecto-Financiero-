@@ -2,8 +2,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:proyectofinanciero/blocs/transactions/transactions_bloc.dart';
+import 'package:vibration/vibration.dart';
+import 'package:intl/intl.dart';
 
 class TransactionsPage extends StatefulWidget {
   const TransactionsPage({super.key});
@@ -60,7 +63,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
     final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F3FB),
+      backgroundColor: Theme.of(context).colorScheme.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -91,11 +94,11 @@ class _TransactionsPageState extends State<TransactionsPage> {
                       ),
                     ],
                   ),
-                  child: const Center(
+                  child: Center(
                     child: CircleAvatar(
-                      backgroundColor: Colors.white,
+                      backgroundColor: Theme.of(context).cardColor,
                       radius: 18,
-                      child: Icon(Icons.person, color: Color(0xFF00B2E7)),
+                      child: const Icon(Icons.person, color: Color(0xFF00B2E7)),
                     ),
                   ),
                 ),
@@ -103,9 +106,9 @@ class _TransactionsPageState extends State<TransactionsPage> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       '¡Bienvenido(a)!',
-                      style: TextStyle(fontSize: 12, color: Colors.black54),
+                      style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onBackground.withOpacity(0.6)),
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -136,8 +139,21 @@ class _TransactionsPageState extends State<TransactionsPage> {
       floatingActionButton: Padding(
         padding: const EdgeInsets.only(bottom: 8.0),
         child: GestureDetector(
-          onTap: () => _showAddModal(context, uid),
-          child: Container(
+          onTap: () async {
+            // Haptic feedback
+            try {
+              final hasVibrator = await Vibration.hasVibrator();
+              if (hasVibrator == true) {
+                Vibration.vibrate(duration: 50);
+              }
+            } catch (e) {
+              // Vibration not available, continue without it
+            }
+            HapticFeedback.lightImpact();
+            _showAddModal(context, uid);
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
             width: 64,
             height: 64,
             decoration: BoxDecoration(
@@ -174,22 +190,67 @@ class _TransactionsPageState extends State<TransactionsPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          ChoiceChip(
-            label: const Text('Todos'),
-            selected: _filterType == 'all',
-            onSelected: (_) => setState(() => _filterType = 'all'),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            child: ChoiceChip(
+              label: const Text('Todos'),
+              selected: _filterType == 'all',
+              onSelected: (_) async {
+                // Haptic feedback
+                try {
+                  final hasVibrator = await Vibration.hasVibrator();
+                  if (hasVibrator == true) {
+                    Vibration.vibrate(duration: 25);
+                  }
+                } catch (e) {
+                  // Vibration not available
+                }
+                HapticFeedback.selectionClick();
+                setState(() => _filterType = 'all');
+              },
+            ),
           ),
           const SizedBox(width: 8),
-          ChoiceChip(
-            label: const Text('Ingresos'),
-            selected: _filterType == 'income',
-            onSelected: (_) => setState(() => _filterType = 'income'),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            child: ChoiceChip(
+              label: const Text('Ingresos'),
+              selected: _filterType == 'income',
+              onSelected: (_) async {
+                // Haptic feedback
+                try {
+                  final hasVibrator = await Vibration.hasVibrator();
+                  if (hasVibrator == true) {
+                    Vibration.vibrate(duration: 25);
+                  }
+                } catch (e) {
+                  // Vibration not available
+                }
+                HapticFeedback.selectionClick();
+                setState(() => _filterType = 'income');
+              },
+            ),
           ),
           const SizedBox(width: 8),
-          ChoiceChip(
-            label: const Text('Egresos'),
-            selected: _filterType == 'expense',
-            onSelected: (_) => setState(() => _filterType = 'expense'),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            child: ChoiceChip(
+              label: const Text('Egresos'),
+              selected: _filterType == 'expense',
+              onSelected: (_) async {
+                // Haptic feedback
+                try {
+                  final hasVibrator = await Vibration.hasVibrator();
+                  if (hasVibrator == true) {
+                    Vibration.vibrate(duration: 25);
+                  }
+                } catch (e) {
+                  // Vibration not available
+                }
+                HapticFeedback.selectionClick();
+                setState(() => _filterType = 'expense');
+              },
+            ),
           ),
         ],
       ),
@@ -255,22 +316,6 @@ class _TransactionsPageState extends State<TransactionsPage> {
     );
   }
 
-  Widget _errorListPlaceholder() {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: const [
-          Icon(Icons.error_outline, size: 48, color: Colors.black45),
-          SizedBox(height: 8),
-          Text(
-            'No se pueden cargar las transacciones en este momento.',
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildListFromDocs(List<_TxnItem> items, String uid) {
     return ListView.separated(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -304,8 +349,14 @@ class _TransactionsPageState extends State<TransactionsPage> {
         final type = item.collection == 'ingresos' ? 'income' : 'expense';
         final ts = data['fecha'] as Timestamp?;
         final date = ts != null ? ts.toDate() : DateTime.now();
+        final frecuencia = item.collection == 'ingresos'
+            ? data['frecuencia_ingr'] ?? 'única'
+            : data['frecuencia_gasto'] ?? 'única';
+        final createdAt = date;
 
-        return Container(
+        return AnimatedContainer(
+          duration: Duration(milliseconds: 300 + (index * 50)),
+          curve: Curves.easeOutBack,
           decoration: BoxDecoration(
             color: Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(12),
@@ -313,68 +364,92 @@ class _TransactionsPageState extends State<TransactionsPage> {
               BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6),
             ],
           ),
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 12,
-            ),
-            leading: CircleAvatar(
-              radius: 22,
-              backgroundColor: _colorForCategory(category).withOpacity(0.18),
-              child: Icon(
-                _iconForCategory(category),
-                color: _colorForCategory(category),
-                size: 20,
-              ),
-            ),
-            title: Text(
-              category.isNotEmpty
-                  ? category
-                  : (note.isNotEmpty ? note : 'Movimiento'),
-              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
-            ),
-            subtitle: Padding(
-              padding: const EdgeInsets.only(top: 6.0),
-              child: Text(
-                note.isNotEmpty ? note : (category.isNotEmpty ? '' : ''),
-                style: const TextStyle(color: Colors.black54),
-              ),
-            ),
-            trailing: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  '${date.day}/${date.month}/${date.year}',
-                  style: const TextStyle(color: Colors.black45, fontSize: 12),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () async {
+                // Haptic feedback
+                try {
+                  final hasVibrator = await Vibration.hasVibrator();
+                  if (hasVibrator == true) {
+                    Vibration.vibrate(duration: 30);
+                  }
+                } catch (e) {
+                  // Vibration not available
+                }
+                HapticFeedback.selectionClick();
+                _showEditModal(
+                  context,
+                  uid,
+                  item.collection,
+                  item.id,
+                  type,
+                  amount,
+                  category,
+                  note,
+                  frecuencia,
+                  createdAt,
+                );
+              },
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  type == 'income'
-                      ? '+\$${amount.toStringAsFixed(2)}'
-                      : '-\$${amount.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    color: type == 'income'
-                        ? const Color(0xFF00B2E7)
-                        : const Color(0xFFE064F7),
-                    fontWeight: FontWeight.w700,
+                leading: CircleAvatar(
+                  radius: 22,
+                  backgroundColor: _colorForCategory(
+                    category,
+                  ).withOpacity(0.18),
+                  child: Icon(
+                    _iconForCategory(category),
+                    color: _colorForCategory(category),
+                    size: 20,
                   ),
                 ),
-              ],
-            ),
-            onTap: () => _showEditModal(
-              context,
-              uid,
-              item.collection,
-              item.id,
-              type,
-              amount,
-              category,
-              note,
-              item.collection == 'ingresos'
-                  ? data['frecuencia_ingr'] ?? 'única'
-                  : data['frecuencia_gasto'] ?? 'única',
-              date,
+                title: Text(
+                  category.isNotEmpty
+                      ? category
+                      : (note.isNotEmpty ? note : 'Movimiento'),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
+                ),
+                subtitle: Padding(
+                  padding: const EdgeInsets.only(top: 6.0),
+                  child: Text(
+                    note.isNotEmpty ? note : (category.isNotEmpty ? '' : ''),
+                    style: const TextStyle(color: Colors.black54),
+                  ),
+                ),
+                trailing: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      DateFormat('dd/MM/yy').format(date),
+                      style: const TextStyle(
+                        color: Colors.black45,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      type == 'income'
+                          ? '+\$${NumberFormat('#,##0.00', 'es_US').format(amount)}'
+                          : '-\$${NumberFormat('#,##0.00', 'es_US').format(amount)}',
+                      style: TextStyle(
+                        color: type == 'income'
+                            ? const Color(0xFF00B2E7)
+                            : const Color(0xFFE064F7),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         );
@@ -483,9 +558,9 @@ class _BalanceCard extends StatelessWidget {
           expenseSum = state.totalGastos;
         }
 
-        final balanceDisplay = (incomeSum - expenseSum).toStringAsFixed(2);
-
-        return Container(
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 800),
+          curve: Curves.easeInOutCubic,
           width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -520,12 +595,15 @@ class _BalanceCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 8),
-              Text(
-                '\$ $balanceDisplay',
+              AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 500),
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
+                ),
+                child: Text(
+                  '\$ ${NumberFormat('#,##0.00', 'es_US').format(incomeSum - expenseSum)}',
                 ),
               ),
               const SizedBox(height: 12),
@@ -547,7 +625,7 @@ class _BalanceCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            '+\$${incomeSum.toStringAsFixed(2)}',
+                            '+\$${NumberFormat('#,##0.00', 'es_US').format(incomeSum)}',
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w600,
@@ -574,7 +652,7 @@ class _BalanceCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            '-\$${expenseSum.toStringAsFixed(2)}',
+                            '-\$${NumberFormat('#,##0.00', 'es_US').format(expenseSum)}',
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w600,
@@ -719,8 +797,18 @@ class _AddTransactionFormState extends State<AddTransactionForm> {
                     validator: (v) {
                       if (v == null || v.trim().isEmpty)
                         return 'Ingresa un monto';
-                      final n = double.tryParse(v.replaceAll(',', '.'));
-                      if (n == null || n <= 0) return 'Monto inválido';
+                      final cleaned = v
+                          .replaceAll(',', '.')
+                          .replaceAll(RegExp(r'[^\\d.]'), '');
+                      final n = double.tryParse(cleaned);
+                      if (n == null) return 'Monto inválido';
+                      if (n <= 0) return 'El monto debe ser mayor a 0';
+                      if (n > 1000000000)
+                        return 'Monto demasiado grande (máx: 1,000,000,000)';
+                      if (cleaned.contains('.') &&
+                          cleaned.split('.')[1].length > 2) {
+                        return 'Máximo 2 decimales';
+                      }
                       return null;
                     },
                   ),
@@ -783,6 +871,16 @@ class _AddTransactionFormState extends State<AddTransactionForm> {
                           if (v == null || v.trim().isEmpty) {
                             return 'Escribe la categoría';
                           }
+                          if (v.trim().length > 30) {
+                            return 'Máximo 30 caracteres';
+                          }
+                          if (v.trim().length < 2) {
+                            return 'Mínimo 2 caracteres';
+                          }
+                          // Validar caracteres especiales
+                          if (RegExp(r'[<>{}\\\/]').hasMatch(v)) {
+                            return 'Caracteres no permitidos: < > { } \\ /';
+                          }
                         }
                         return null;
                       },
@@ -820,18 +918,54 @@ class _AddTransactionFormState extends State<AddTransactionForm> {
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _noteCtrl,
+                    maxLength: 100,
                     decoration: const InputDecoration(
-                      labelText: 'Descripción',
+                      labelText: 'Descripción (opcional)',
                       prefixIcon: Icon(Icons.note),
+                      helperText: 'Máximo 100 caracteres',
                     ),
+                    validator: (v) {
+                      if (v != null && v.trim().length > 100) {
+                        return 'Máximo 100 caracteres';
+                      }
+                      // Validar caracteres especiales peligrosos
+                      if (v != null && RegExp(r'[<>{}\\\/]').hasMatch(v)) {
+                        return 'Caracteres no permitidos: < > { } \\ /';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 12),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: _loading ? null : _onSubmit,
+                      onPressed: _loading
+                          ? null
+                          : () async {
+                              // Haptic feedback
+                              try {
+                                final hasVibrator =
+                                    await Vibration.hasVibrator();
+                                if (hasVibrator == true) {
+                                  Vibration.vibrate(duration: 50);
+                                }
+                              } catch (e) {
+                                // Vibration not available
+                              }
+                              HapticFeedback.mediumImpact();
+                              _onSubmit();
+                            },
                       child: _loading
-                          ? const CircularProgressIndicator()
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
+                              ),
+                            )
                           : const Text('Guardar'),
                     ),
                   ),

@@ -1,5 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:proyectofinanciero/blocs/theme/theme_bloc.dart';
 import 'profile_edit_page.dart';
 
 class MenuPage extends StatefulWidget {
@@ -15,7 +17,7 @@ class _MenuPageState extends State<MenuPage> {
     final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F3FB),
+      backgroundColor: Theme.of(context).colorScheme.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -24,6 +26,7 @@ class _MenuPageState extends State<MenuPage> {
       body: Column(
         children: [
           const SizedBox(height: 18),
+
           // Header
           // Padding(
           //   padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -117,7 +120,6 @@ class _MenuPageState extends State<MenuPage> {
           //     ],
           //   ),
           // ),
-
           const SizedBox(height: 32),
 
           Expanded(
@@ -130,7 +132,7 @@ class _MenuPageState extends State<MenuPage> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: Theme.of(context).cardColor,
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
@@ -163,16 +165,19 @@ class _MenuPageState extends State<MenuPage> {
                         const SizedBox(height: 16),
                         Text(
                           user?.displayName ?? 'Usuario',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           user?.email ?? '',
-                          style: const TextStyle(
-                            color: Colors.black54,
+                          style: TextStyle(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withOpacity(0.6),
                             fontSize: 14,
                           ),
                         ),
@@ -223,6 +228,26 @@ class _MenuPageState extends State<MenuPage> {
                         const SnackBar(
                           content: Text('Función próximamente disponible'),
                         ),
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Theme toggle option
+                  BlocBuilder<ThemeBloc, ThemeState>(
+                    builder: (context, state) {
+                      return _buildMenuOption(
+                        icon: state.themeMode == ThemeMode.dark
+                            ? Icons.light_mode_outlined
+                            : Icons.dark_mode_outlined,
+                        title: state.themeMode == ThemeMode.dark
+                            ? 'Modo Claro'
+                            : 'Modo Oscuro',
+                        subtitle: 'Cambia la apariencia de la app',
+                        onTap: () {
+                          context.read<ThemeBloc>().add(ToggleTheme());
+                        },
                       );
                     },
                   ),
@@ -292,7 +317,7 @@ class _MenuPageState extends State<MenuPage> {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6),
@@ -312,16 +337,23 @@ class _MenuPageState extends State<MenuPage> {
         ),
         title: Text(
           title,
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 16,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
         ),
         subtitle: Text(
           subtitle,
-          style: const TextStyle(color: Colors.black54, fontSize: 14),
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+            fontSize: 14,
+          ),
         ),
-        trailing: const Icon(
+        trailing: Icon(
           Icons.arrow_forward_ios,
           size: 16,
-          color: Colors.black26,
+          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
         ),
       ),
     );
