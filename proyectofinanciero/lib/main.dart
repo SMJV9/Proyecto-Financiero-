@@ -5,6 +5,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:proyectofinanciero/blocs/transactions/transactions_bloc.dart';
 import 'package:proyectofinanciero/blocs/theme/theme_bloc.dart';
 import 'package:proyectofinanciero/splash_screen.dart';
+import 'package:proyectofinanciero/login_page.dart';
+import 'package:proyectofinanciero/main_navigation.dart';
 import 'package:proyectofinanciero/themes.dart';
 import 'firebase_options.dart'; // generado por FlutterFire CLI
 
@@ -38,6 +40,11 @@ class MyApp extends StatelessWidget {
               FirebaseAnalyticsObserver(analytics: FirebaseAnalytics.instance),
             ],
             home: const SplashScreen(),
+            routes: {
+              '/': (context) => const SplashScreen(),
+              '/login': (context) => const LoginPage(),
+              '/main': (context) => const MainNavigation(),
+            },
           );
         },
       ),

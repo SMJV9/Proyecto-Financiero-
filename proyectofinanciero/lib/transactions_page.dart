@@ -108,7 +108,12 @@ class _TransactionsPageState extends State<TransactionsPage> {
                   children: [
                     Text(
                       '¡Bienvenido(a)!',
-                      style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onBackground.withOpacity(0.6)),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onBackground.withOpacity(0.6),
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(

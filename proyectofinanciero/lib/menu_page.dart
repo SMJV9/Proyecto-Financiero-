@@ -372,12 +372,21 @@ class _MenuPageState extends State<MenuPage> {
           ),
           TextButton(
             onPressed: () async {
-              await FirebaseAuth.instance.signOut();
-              if (mounted) {
-                Navigator.of(ctx).pop();
-                // Navigate back to login screen
-                // You might want to replace this with your actual login navigation
-                Navigator.of(context).pushReplacementNamed('/login');
+              try {
+                await FirebaseAuth.instance.signOut();
+                if (mounted) {
+                  Navigator.of(ctx).pop(); // Cerrar el diálogo
+                  // Navegar al splash screen y limpiar toda la pila de navegación
+                  Navigator.of(
+                    context,
+                  ).pushNamedAndRemoveUntil('/', (route) => false);
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error al cerrar sesión: $e')),
+                  );
+                }
               }
             },
             style: TextButton.styleFrom(

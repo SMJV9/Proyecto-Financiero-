@@ -29,7 +29,7 @@ class _MainNavigationState extends State<MainNavigation> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    
+
     return Scaffold(
       body: IndexedStack(index: _selectedIndex, children: _pages),
       bottomNavigationBar: Container(
@@ -50,7 +50,8 @@ class _MainNavigationState extends State<MainNavigation> {
           backgroundColor: Colors.transparent,
           elevation: 0,
           selectedItemColor: theme.bottomNavigationBarTheme.selectedItemColor,
-          unselectedItemColor: theme.bottomNavigationBarTheme.unselectedItemColor,
+          unselectedItemColor:
+              theme.bottomNavigationBarTheme.unselectedItemColor,
           selectedLabelStyle: const TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: 12,
