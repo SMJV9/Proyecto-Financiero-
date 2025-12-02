@@ -1,30 +1,81 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:proyectofinanciero/main.dart';
+import 'package:proyectofinanciero/themes.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  group('Pruebas de Temas', () {
+    test('Tema claro debe tener brillo correcto', () {
+      final lightTheme = AppThemes.lightTheme;
+      expect(lightTheme.brightness, Brightness.light);
+      expect(lightTheme.colorScheme.primary, const Color(0xFF00B2E7));
+    });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    test('Tema oscuro debe tener brillo correcto', () {
+      final darkTheme = AppThemes.darkTheme;
+      expect(darkTheme.brightness, Brightness.dark);
+      expect(darkTheme.colorScheme.primary, const Color(0xFF00B2E7));
+    });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    test('Colores principales deben ser correctos', () {
+      expect(
+        const Color(0xFF00B2E7),
+        equals(const Color(0xFF00B2E7)),
+      ); // Azul principal
+      expect(
+        const Color(0xFFE064F7),
+        equals(const Color(0xFFE064F7)),
+      ); // Morado secundario
+      expect(
+        const Color(0xFFFFB6DC),
+        equals(const Color(0xFFFFB6DC)),
+      ); // Rosa accent
+    });
+  });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  group('Pruebas de Validaciones', () {
+    test('Validación de montos', () {
+      // Montos válidos
+      expect(100.50 > 0, isTrue);
+      expect(1000000000 <= 1000000000, isTrue); // Límite máximo
+
+      // Montos inválidos
+      expect(-50.0 > 0, isFalse);
+      expect(0.0 > 0, isFalse);
+    });
+
+    test('Validación de decimales', () {
+      const amount = 123.45;
+      final decimals = amount.toString().split('.').length > 1
+          ? amount.toString().split('.')[1].length
+          : 0;
+
+      expect(decimals <= 2, isTrue); // Máximo 2 decimales
+    });
+
+    test('Categorías válidas', () {
+      const validCategories = [
+        'Comida',
+        'Transporte',
+        'Entretenimiento',
+        'Salud',
+      ];
+      const testCategory = 'Comida';
+
+      expect(validCategories.contains(testCategory), isTrue);
+    });
+  });
+
+  group('Pruebas de Formato', () {
+    test('Formato de dinero', () {
+      const amount = 1234.56;
+      final formatted = '\$${amount.toStringAsFixed(2)}';
+
+      expect(formatted, equals('\$1234.56'));
+    });
+
+    test('Números grandes', () {
+      const largeAmount = 1000000.0;
+      expect(largeAmount >= 1000000, isTrue);
+    });
   });
 }

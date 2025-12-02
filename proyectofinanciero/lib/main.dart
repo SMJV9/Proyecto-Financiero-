@@ -39,7 +39,7 @@ class MyApp extends StatelessWidget {
             navigatorObservers: [
               FirebaseAnalyticsObserver(analytics: FirebaseAnalytics.instance),
             ],
-            home: const SplashScreen(),
+            initialRoute: '/',
             routes: {
               '/': (context) => const SplashScreen(),
               '/login': (context) => const LoginPage(),
